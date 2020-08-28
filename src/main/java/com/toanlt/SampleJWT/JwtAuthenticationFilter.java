@@ -18,7 +18,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.toanlt.SampleJWT.jwt.JwtTokenProvider;
 import com.toanlt.SampleJWT.service.UserService;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
 	@Autowired
 	private JwtTokenProvider tokenProvider;
 
@@ -30,21 +34,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			throws ServletException, IOException {
 		try {
 			String jwt = getJwtFromRequest(request);
+
 			if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
 				Long userId = tokenProvider.getUserIdJwt(jwt);
+
 				UserDetails userDetails = customUserDetailsService.loadUserById(userId);
 				if (userDetails != null) {
-					UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-							userId, null, userDetails.getAuthorities());
-					authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+					UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+							userDetails, null, userDetails.getAuthorities());
+					authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-					SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-					;
+					SecurityContextHolder.getContext().setAuthentication(authentication);
 				}
 			}
-		} catch (Exception e) {
-			System.out.println("failed on set user authentication" + e);
+		} catch (Exception ex) {
+			log.error("failed on set user authentication", ex);
 		}
+
+		filterChain.doFilter(request, response);
 	}
 
 	private String getJwtFromRequest(HttpServletRequest request) {
